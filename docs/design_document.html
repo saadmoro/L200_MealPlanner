@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recipe Planner & Shopping List Agent — ADK 2.0 Design Document</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose' });
+  </script>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --border: #e2e8f0;
+      --accent: #1a73e8;
+      --accent-soft: #e8f0fe;
+      --green: #137333;
+      --green-soft: #e6f4ea;
+      --amber: #b06000;
+      --amber-soft: #fef7e0;
+      --code-bg: #0f172a;
+      --code-fg: #e2e8f0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+    }
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+    header {
+      background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+      color: #fff;
+      padding: 36px 32px;
+      border-radius: 16px;
+      margin-bottom: 28px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    }
+    header h1 { margin: 0 0 8px; font-size: 1.95rem; letter-spacing: -0.02em; }
+    header p { margin: 0; opacity: 0.92; font-size: 1.02rem; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .badge {
+      background: rgba(255,255,255,0.16);
+      border: 1px solid rgba(255,255,255,0.28);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+    nav.toc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 22px;
+      margin-bottom: 24px;
+    }
+    nav.toc h2 { margin: 0 0 10px; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    nav.toc ul { margin: 0; padding-left: 18px; columns: 2; }
+    nav.toc a { color: var(--accent); text-decoration: none; font-weight: 500; }
+    nav.toc a:hover { text-decoration: underline; }
+    section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 30px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    }
+    h2 { margin-top: 0; font-size: 1.4rem; border-bottom: 2px solid var(--accent-soft); padding-bottom: 8px; color: #0b3d91; }
+    h3 { margin-top: 22px; font-size: 1.1rem; color: var(--ink); }
+    .callout {
+      background: var(--accent-soft);
+      border-left: 4px solid var(--accent);
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+    }
+    .callout.safety { background: var(--green-soft); border-left-color: var(--green); }
+    .callout.note { background: var(--amber-soft); border-left-color: var(--amber); }
+    .diagram-box {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      overflow-x: auto;
+      margin: 16px 0;
+    }
+    pre {
+      background: var(--code-bg);
+      color: var(--code-fg);
+      padding: 16px 18px;
+      border-radius: 10px;
+      overflow-x: auto;
+      font-size: 0.86rem;
+      line-height: 1.5;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.88em;
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    pre code { background: transparent; padding: 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0;
+      font-size: 0.92rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f1f5f9; font-weight: 600; }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+      background: #fcfdff;
+    }
+    .card h4 { margin: 0 0 8px; color: #0b3d91; }
+    @media (max-width: 680px) {
+      nav.toc ul { columns: 1; }
+      section { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Grocery Store Recipe Planner &amp; Shopping List Agent</h1>
+      <p>Architectural Design &amp; Database Schema Proposal — Google ADK 2.0 (<code>Workflow</code> Graph API)</p>
+      <div class="badges">
+        <span class="badge">Status: Draft for Review</span>
+        <span class="badge">Google ADK 2.0 + agents-cli</span>
+        <span class="badge">Local Prototype (--prototype)</span>
+        <span class="badge">SQLite + Local OpenTelemetry</span>
+        <span class="badge">Hard Deterministic Safety Gates</span>
+      </div>
+    </header>
+
+    <nav class="toc">
+      <h2>Contents</h2>
+      <ul>
+        <li><a href="#summary">1. Executive Summary</a></li>
+        <li><a href="#dag">2. Agentic Workflow DAG &amp; Data Flow</a></li>
+        <li><a href="#schemas">3. Proposed SQLite Database Schemas</a></li>
+        <li><a href="#area1">4. Area 1 — Tool &amp; Interface Design</a></li>
+        <li><a href="#area2">5. Area 2 — Orchestration &amp; Logic</a></li>
+        <li><a href="#area3">6. Area 3 — Context &amp; Memory</a></li>
+        <li><a href="#area4">7. Area 4 — Observability &amp; Tracing</a></li>
+        <li><a href="#area5">8. Area 5 — Infrastructure &amp; CI/CD</a></li>
+        <li><a href="#ux">9. UX Enhancements &amp; Roadmap</a></li>
+      </ul>
+    </nav>
+
+    <section id="summary">
+      <h2>1. Executive Summary</h2>
+      <p>
+        This design specifies an agentic grocery store meal-planning and shopping-list application built on
+        <strong>Google ADK 2.0</strong>. Following a <strong>determinism-first</strong> philosophy, all database lookups,
+        allergen and sodium safety checks, serving-size scaling, macronutrient/calorie calculations, SKU package rounding,
+        and order persistence are executed by typed Python <code>FunctionNode</code>s and <code>FunctionTool</code>s.
+        Probabilistic <code>LlmAgent</code> calls are isolated to conversational discovery and skill-calibrated recipe authoring.
+      </p>
+      <div class="callout safety">
+        <strong>Safety &amp; Clinical Boundaries:</strong> Medical constraints (e.g., celiac disease / gluten, hypertension / sodium)
+        are enforced deterministically at both the tool/SQL layer and a runner-wide <code>DietarySafetyPlugin</code>
+        (<code>BasePlugin</code>), accompanied by a non-medical-advice disclaimer.
+      </div>
+    </section>
+
+    <section id="dag">
+      <h2>2. Agentic Workflow DAG &amp; Data Flow</h2>
+      <p>
+        The root agent is an ADK 2.0 <code>google.adk.workflow.Workflow</code> configured with
+        <code>ResumabilityConfig(is_resumable=True)</code> so every customer decision point pauses cleanly via
+        <code>RequestInput</code> and resumes with typed state.
+      </p>
+      <div class="diagram-box">
+        <div class="mermaid">
+flowchart TD
+    START(("START&lt;br/&gt;User Session")) --> LOAD["FunctionNode:&lt;br/&gt;load_user_context&lt;br/&gt;(SQLite + Memory)"]
+    LOAD --> DISC["LlmAgent:&lt;br/&gt;meal_discovery_agent&lt;br/&gt;Greeting + Ideation / Direct Meal"]
+    DISC --> GATE1{"HITL Gate 1:&lt;br/&gt;Meal Confirmed?"}
+    GATE1 -- "needs_ideation / refine" --> DISC
+    GATE1 -- "meal_selected" --> AUTHOR["LlmAgent (output_schema=RecipeDraft):&lt;br/&gt;recipe_author_agent&lt;br/&gt;Skill- &amp; Diet-Calibrated Recipe"]
+
+    AUTHOR --> SAFE["FunctionNode:&lt;br/&gt;validate_meal_safety&lt;br/&gt;Hard Allergen &amp; Sodium Check"]
+    SAFE -- "unsafe_allergen / retry" --> AUTHOR
+    SAFE -- "safe" --> SIZE_GATE{"HITL Gate 2:&lt;br/&gt;Choose Servings&lt;br/&gt;(e.g., 2 vs 4 meals)"}
+
+    SIZE_GATE --> NUTR["FunctionNode:&lt;br/&gt;compute_nutrition_and_scale&lt;br/&gt;Exact kcal / Macros / Sodium"]
+    NUTR --> MAP["FunctionNode:&lt;br/&gt;map_inventory_skus&lt;br/&gt;Stock Check + Package Rounding"]
+    MAP --> LIST_GATE{"HITL Gate 3:&lt;br/&gt;Review &amp; Deselect&lt;br/&gt;Owned Items"}
+
+    LIST_GATE -- "remove_items" --> EDIT["FunctionNode:&lt;br/&gt;apply_list_edits&lt;br/&gt;Mark already_owned &amp; Recalc"]
+    EDIT --> LIST_GATE
+    LIST_GATE -- "change_servings" --> SIZE_GATE
+    LIST_GATE -- "confirm_order" --> PERSIST["FunctionNode:&lt;br/&gt;persist_meal_order&lt;br/&gt;Write meal_orders + Update Memory"]
+    PERSIST --> DONE(("FINAL OUTPUT&lt;br/&gt;Complete Recipe +&lt;br/&gt;Aisle-Sorted Shopping List"))
+        </div>
+      </div>
+    </section>
+
+    <section id="schemas">
+      <h2>3. Proposed SQLite Database Schemas</h2>
+      <p>
+        All store, nutritional, inventory, customer, and finalized shopping-list records live in a normalized SQLite database
+        (<code>data/grocery_store.db</code>). Every SKU stores canonical base-unit conversion factors (<code>g</code>,
+        <code>ml</code>, or <code>count</code>) so nutrition and package math are 100% deterministic.
+      </p>
+      <div class="diagram-box">
+        <div class="mermaid">
+erDiagram
+    PRODUCTS ||--|| NUTRITIONAL_FACTS : "1:1 (sku)"
+    PRODUCTS ||--o{ INVENTORY : "stocked (store_id, sku)"
+    USERS ||--o{ USER_DIETARY_CONSTRAINTS : "enforces"
+    USERS ||--o{ USER_PREFERENCES : "records"
+    USERS ||--o{ MEAL_ORDERS : "owns"
+    MEAL_ORDERS ||--o{ MEAL_ORDER_ITEMS : "contains"
+    PRODUCTS ||--o{ MEAL_ORDER_ITEMS : "sku"
+
+    PRODUCTS {
+        text sku PK
+        text name
+        text canonical_ingredient
+        text category
+        real package_qty
+        text package_unit
+        text base_unit
+        real grams_or_ml_per_package
+        real unit_price_usd
+        text allergen_tags_json
+        text dietary_tags_json
+    }
+    NUTRITIONAL_FACTS {
+        text sku PK, FK
+        text serving_size_desc
+        real serving_size_g_or_ml
+        real calories_per_100
+        real protein_g_per_100
+        real carbs_g_per_100
+        real fat_g_per_100
+        real fiber_g_per_100
+        real sodium_mg_per_100
+    }
+    INVENTORY {
+        text store_id PK
+        text sku PK, FK
+        int qty_on_hand
+        int qty_reserved
+        text aisle_location
+        text restock_eta
+    }
+    USERS {
+        text user_id PK
+        text full_name
+        text phone_number
+        text cooking_skill_level
+        int default_servings
+        int daily_calorie_target
+        int daily_sodium_limit_mg
+    }
+    USER_DIETARY_CONSTRAINTS {
+        int id PK
+        text user_id FK
+        text constraint_type
+        text code
+        text severity
+    }
+    USER_PREFERENCES {
+        int id PK
+        text user_id FK
+        text category
+        text value
+        text sentiment
+        real weight
+        text source_session_id
+    }
+    MEAL_ORDERS {
+        text order_id PK
+        text user_id FK
+        text session_id
+        text recipe_title
+        int servings_count
+        text recipe_json
+        text nutrition_summary_json
+        real estimated_total_usd
+        text delivery_channel
+    }
+    MEAL_ORDER_ITEMS {
+        int id PK
+        text order_id FK
+        text sku FK
+        real required_qty_base
+        int packages_to_buy
+        text display_qty
+        real line_total_usd
+        int deselected_by_user
+        text deselect_reason
+    }
+        </div>
+      </div>
+
+      <h3>3.1 Product Catalogue &amp; Nutritional Facts</h3>
+      <pre><code>CREATE TABLE products (
+    sku                     TEXT PRIMARY KEY,              -- e.g. 'SKU-CHK-BRST-16OZ'
+    name                    TEXT NOT NULL,
+    canonical_ingredient    TEXT NOT NULL,                 -- 'chicken_breast'
+    category                TEXT NOT NULL,
+    brand                   TEXT,
+    package_qty             REAL NOT NULL,                 -- 1.0
+    package_unit            TEXT NOT NULL,                 -- 'lb', 'oz', 'count'
+    base_unit               TEXT NOT NULL CHECK (base_unit IN ('g', 'ml', 'count')),
+    grams_or_ml_per_package REAL NOT NULL,                 -- 453.592
+    unit_price_usd          REAL NOT NULL,
+    allergen_tags_json      TEXT NOT NULL DEFAULT '[]',    -- '["gluten","soy"]'
+    dietary_tags_json       TEXT NOT NULL DEFAULT '[]',    -- '["gluten_free","low_sodium"]'
+    is_active               INTEGER NOT NULL DEFAULT 1,
+    updated_at              TEXT NOT NULL
+);
+
+CREATE TABLE nutritional_facts (
+    sku                     TEXT PRIMARY KEY REFERENCES products(sku),
+    serving_size_desc       TEXT NOT NULL,                 -- '4 oz (112g)'
+    serving_size_g_or_ml    REAL NOT NULL,
+    calories_per_100        REAL NOT NULL,
+    protein_g_per_100       REAL NOT NULL,
+    carbs_g_per_100         REAL NOT NULL,
+    fat_g_per_100           REAL NOT NULL,
+    saturated_fat_g_per_100 REAL NOT NULL,
+    fiber_g_per_100         REAL NOT NULL,
+    sugar_g_per_100         REAL NOT NULL,
+    sodium_mg_per_100       REAL NOT NULL,
+    data_source             TEXT NOT NULL DEFAULT 'USDA_FDC_SEED'
+);</code></pre>
+
+      <h3>3.2 Inventory, User Profiles &amp; Finalized Meal Orders</h3>
+      <pre><code>CREATE TABLE inventory (
+    store_id        TEXT NOT NULL DEFAULT 'STORE-001',
+    sku             TEXT NOT NULL REFERENCES products(sku),
+    qty_on_hand     INTEGER NOT NULL CHECK (qty_on_hand &gt;= 0),
+    qty_reserved    INTEGER NOT NULL DEFAULT 0 CHECK (qty_reserved &gt;= 0),
+    aisle_location  TEXT NOT NULL,
+    restock_eta     TEXT,
+    last_counted_at TEXT NOT NULL,
+    PRIMARY KEY (store_id, sku)
+);
+
+CREATE VIEW v_available_inventory AS
+SELECT store_id, sku, (qty_on_hand - qty_reserved) AS available_qty, aisle_location, restock_eta
+FROM inventory;
+
+CREATE TABLE users (
+    user_id               TEXT PRIMARY KEY,                -- 'cust_malcom_munson'
+    full_name             TEXT NOT NULL,
+    phone_number          TEXT,
+    cooking_skill_level   TEXT NOT NULL DEFAULT 'intermediate'
+                          CHECK (cooking_skill_level IN ('beginner', 'intermediate', 'advanced')),
+    default_servings      INTEGER NOT NULL DEFAULT 2,
+    daily_calorie_target  INTEGER,
+    daily_sodium_limit_mg INTEGER,                         -- e.g. 1500
+    created_at            TEXT NOT NULL,
+    updated_at            TEXT NOT NULL
+);
+
+CREATE TABLE user_dietary_constraints (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id         TEXT NOT NULL REFERENCES users(user_id),
+    constraint_type TEXT NOT NULL CHECK (constraint_type IN ('medical_condition', 'allergen', 'diet_regime')),
+    code            TEXT NOT NULL,                         -- 'celiac_disease', 'gluten', 'hypertension'
+    severity        TEXT NOT NULL CHECK (severity IN ('hard_block', 'warn_threshold')),
+    notes           TEXT,
+    UNIQUE(user_id, constraint_type, code)
+);
+
+CREATE TABLE user_preferences (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id           TEXT NOT NULL REFERENCES users(user_id),
+    category          TEXT NOT NULL CHECK (category IN ('cuisine', 'ingredient', 'protein', 'flavor_profile', 'equipment')),
+    value             TEXT NOT NULL,                       -- 'mediterranean', 'chicken', 'eggplant'
+    sentiment         TEXT NOT NULL CHECK (sentiment IN ('like', 'prefer', 'dislike', 'avoid')),
+    weight            REAL NOT NULL DEFAULT 1.0,
+    source_session_id TEXT,
+    updated_at        TEXT NOT NULL,
+    UNIQUE(user_id, category, value)
+);
+
+CREATE TABLE meal_orders (
+    order_id               TEXT PRIMARY KEY,
+    user_id                TEXT NOT NULL REFERENCES users(user_id),
+    session_id             TEXT NOT NULL,
+    recipe_title           TEXT NOT NULL,
+    servings_count         INTEGER NOT NULL,
+    recipe_json            TEXT NOT NULL,
+    nutrition_summary_json TEXT NOT NULL,
+    estimated_total_usd    REAL NOT NULL,
+    delivery_channel       TEXT NOT NULL DEFAULT 'account_attached',
+    status                 TEXT NOT NULL DEFAULT 'finalized',
+    created_at             TEXT NOT NULL
+);
+
+CREATE TABLE meal_order_items (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id           TEXT NOT NULL REFERENCES meal_orders(order_id),
+    sku                TEXT NOT NULL REFERENCES products(sku),
+    required_qty_base  REAL NOT NULL,
+    packages_to_buy    INTEGER NOT NULL,
+    display_qty        TEXT NOT NULL,
+    line_total_usd     REAL NOT NULL,
+    deselected_by_user INTEGER NOT NULL DEFAULT 0,
+    deselect_reason    TEXT
+);</code></pre>
+    </section>
+
+    <section id="area1">
+      <h2>4. Area 1 — Tool &amp; Interface Design</h2>
+      <p>
+        Every lookup, dietary check, math conversion, and database write is encapsulated in typed Python tools with
+        Pydantic schemas so LLMs never perform arithmetic or guess inventory availability.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Module</th><th>Tool / Node</th><th>Deterministic Responsibility</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>profile_tools.py</code></td><td><code>get_user_profile</code>, <code>upsert_user_preference</code>, <code>set_cooking_skill_level</code></td><td>Read/write customer medical constraints, taste preferences, and cooking skill level.</td></tr>
+          <tr><td><code>catalog_tools.py</code></td><td><code>search_products</code>, <code>find_safe_substitute_sku</code></td><td>Query active in-stock SKUs with deterministic SQL allergen exclusion &amp; dietary tag filtering.</td></tr>
+          <tr><td><code>nutrition_tools.py</code></td><td><code>convert_units_to_base</code>, <code>get_sku_nutrition</code>, <code>calculate_recipe_nutrition</code></td><td>Compute exact per-serving &amp; total calories, protein, carbs, fat, fiber, and sodium from <code>nutritional_facts</code>.</td></tr>
+          <tr><td><code>safety_tools.py</code></td><td><code>check_dietary_compliance</code></td><td>Hard-block any SKU intersecting <code>hard_block</code> allergens; flag sodium threshold exceedances.</td></tr>
+          <tr><td><code>shopping_tools.py</code></td><td><code>build_shopping_list</code>, <code>apply_deselections</code>, <code>save_meal_order</code></td><td>Scale ingredients by servings, ceiling-round to purchasable packs, record deselected owned items, persist order.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        <strong>Future UI Readiness:</strong> Every workflow node emits typed Pydantic JSON in <code>Event.output</code>
+        alongside readable Markdown in <code>Event.content</code>. Combined with <code>agents-cli</code>'s built-in A2A surface,
+        a future web/mobile UI or <strong>A2UI</strong> card renderer can bind directly to the shopping list and recipe schemas.
+      </div>
+    </section>
+
+    <section id="area2">
+      <h2>5. Area 2 — Orchestration &amp; Logic</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h4>Graph-Enforced Stage Gating</h4>
+          <p>ADK 2.0 <code>Workflow</code> edges prevent skipping stages: sizing cannot run until Gate 1 confirms a meal; checkout cannot run until Gate 3 confirms item deselections.</p>
+        </div>
+        <div class="card">
+          <h4>Loop-Safe HITL Interrupts</h4>
+          <p>Enabled via <code>ResumabilityConfig(is_resumable=True)</code> and indexed <code>RequestInput(interrupt_id=...)</code> keys so customers can iterate on meal ideas, servings, or owned-item removals without restarting.</p>
+        </div>
+        <div class="card">
+          <h4>Self-Healing Safety Loop</h4>
+          <p><code>validate_meal_safety</code> routes <code>unsafe_allergen</code> back to <code>recipe_author_agent</code> (bounded retries) with safe in-stock SKU substitutes (e.g., GF tamari for soy sauce).</p>
+        </div>
+        <div class="card">
+          <h4>Runner-Wide Guardrail Plugin</h4>
+          <p><code>DietarySafetyPlugin(BasePlugin)</code> (adapted from <code>safety-plugins</code>) enforces allergen blocking and non-medical-advice disclaimers across every agent and tool centrally.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="area3">
+      <h2>6. Area 3 — Context &amp; Memory</h2>
+      <table>
+        <thead>
+          <tr><th>Tier</th><th>Mechanism (Local Prototype)</th><th>Cloud Promotion Path</th><th>Data Stored</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>1. Session State</strong></td><td>ADK <code>DatabaseSessionService</code> (SQLite)</td><td>Cloud SQL / Agent Platform Sessions</td><td>Active workflow stage, draft recipe, serving count, draft shopping list.</td></tr>
+          <tr><td><strong>2. Structured Profile</strong></td><td>SQLite <code>users</code>, <code>user_dietary_constraints</code>, <code>user_preferences</code></td><td>Cloud SQL (PostgreSQL)</td><td>Authoritative medical constraints, allergens, taste affinities, cooking skill level.</td></tr>
+          <tr><td><strong>3. Episodic Memory</strong></td><td>ADK <code>MemoryService</code> + <code>PreloadMemoryTool</code> + <code>after_agent_callback</code> (adapted from <code>cross-session-memory</code>)</td><td>Gemini Platform Memory Bank</td><td>Conversational preferences, past meal ratings, implicit habits recalled across sessions.</td></tr>
+        </tbody>
+      </table>
+      <p>Long conversations use ADK <code>EventsCompactionConfig</code> (token-threshold summarization) to keep LLM prompts focused while deterministic state stays lossless in SQLite.</p>
+    </section>
+
+    <section id="area4">
+      <h2>7. Area 4 — Observability &amp; Tracing</h2>
+      <p>Full OpenTelemetry span hierarchy emitted natively by ADK 2.0 and enriched by an <code>ObservabilityPlugin(BasePlugin)</code>:</p>
+      <pre><code>invoke_workflow (meal_planner_workflow)                      [user.id, session.id, prompt.version]
+  ├── execute_node: load_user_context                        [constraints.count, skill_level]
+  ├── invoke_agent: meal_discovery_agent                     [workflow.stage="meal_selection"]
+  │     ├── call_llm -&gt; generate_content                     [model, input_tokens, output_tokens]
+  │     └── execute_tool: upsert_user_preference             [category, sentiment]
+  ├── invoke_agent: recipe_author_agent                      [workflow.stage="recipe_authoring"]
+  ├── execute_node: validate_meal_safety                     [workflow.route="safe"|"unsafe_allergen"]
+  ├── execute_node: compute_nutrition_and_scale              [servings, kcal_per_serving, sodium_mg]
+  ├── execute_node: map_inventory_skus                       [sku_count, substitutions_count]
+  └── execute_node: persist_meal_order                       [order_id, deselected_count, total_usd]</code></pre>
+      <div class="callout note">
+        <strong>Local &amp; Production Exporters:</strong> Prototype writes traces to <code>logs/traces.jsonl</code> and supports
+        standard OTLP HTTP (<code>http://localhost:4318/v1/traces</code>) for local Arize Phoenix or Jaeger inspection.
+        Cloud deployments activate <strong>Cloud Trace</strong> (<code>otel_to_cloud=True</code>) and optional
+        <strong>BigQuery Agent Analytics</strong> (<code>--bq-analytics</code>) with zero code changes.
+      </div>
+    </section>
+
+    <section id="area5">
+      <h2>8. Area 5 — Infrastructure &amp; CI/CD</h2>
+      <ul>
+        <li><strong>Version Control Everything:</strong> System prompts live in versioned Markdown files (<code>app/prompts/*.v1.md</code>) tagged on trace spans; schemas, SQLite migrations (<code>data/migrations/</code>), workflow graphs, tools, and eval datasets are all tracked in Git.</li>
+        <li><strong>Isolated Environment:</strong> Scaffolded via <code>agents-cli scaffold create meal-planner --agent adk_python --prototype</code> with a dedicated <code>uv</code> virtual environment and locked dependencies (<code>uv.lock</code>).</li>
+        <li><strong>Two-Layer Quality Gate:</strong>
+          <ol>
+            <li><code>uv run pytest</code> — 100% deterministic unit &amp; integration tests (DB integrity, nutrition math, allergen hard-blocks, SKU rounding, deselection audit trail).</li>
+            <li><code>agents-cli eval run</code> — Behavioral &amp; trajectory evaluation against versioned datasets in <code>tests/eval/</code> with strict pass/fail thresholds (<code>safety == 1.0</code>, <code>trajectory &gt;= 0.90</code>).</li>
+          </ol>
+        </li>
+        <li><strong>Seamless Cloud Promotion:</strong> Run <code>agents-cli scaffold enhance . --deployment-target cloud_run</code> (or <code>agent_runtime</code>) and <code>--cicd-runner github_actions</code> (or <code>google_cloud_build</code>) when moving beyond prototype.</li>
+      </ul>
+    </section>
+
+    <section id="ux">
+      <h2>9. UX Enhancements &amp; Implementation Roadmap</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h4>UX Improvements Included in Design</h4>
+          <ul>
+            <li>Aisle-sorted shopping lists with both recipe qty and package count + estimated cost.</li>
+            <li>Smart pantry-staples highlighting at Gate 3 for one-turn deselection.</li>
+            <li>Proactive safe in-stock SKU substitutions for allergens or out-of-stock items.</li>
+            <li>Loop-back / ADK session rewind if the customer changes servings or dish mid-flow.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Phased Execution</h4>
+          <ol>
+            <li><strong>Review &amp; Approve</strong> this design doc + <code>.agents-cli-spec.md</code>.</li>
+            <li><strong>Study ADK Recipes</strong> (<code>cross-session-memory</code>, <code>safety-plugins</code>, <code>ambient-expense-agent</code>, <code>deep-search</code>).</li>
+            <li><strong>Scaffold Prototype</strong> in <code>meal-planner/</code> with fresh <code>uv</code> venv.</li>
+            <li><strong>Implement Slice 1</strong> (DB seed + deterministic tools + ADK 2.0 Workflow + pytest + evals) after design sign-off.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
