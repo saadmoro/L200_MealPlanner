@@ -1,0 +1,23 @@
+# Defense-in-depth root ignore rules (mirrors meal-planner/.gitignore)
+# Never commit secrets or local environment files
+.env
+.env.*
+!.env.example
+*.pem
+*-key.json
+credentials*.json
+
+# Virtual environments & caches
+.venv/
+.venv*/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Local SQLite databases, trace logs & eval artifacts
+*.db
+*.db-*
+logs/
+artifacts/
+.google-agents-cli/

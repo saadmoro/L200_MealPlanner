@@ -1,0 +1,37 @@
+{
+  "eval_cases": [
+    {
+      "eval_case_id": "friendly_greeting",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Hello!"
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "direct_meal_kung_pao_chicken",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "I want to make kung pao chicken for 2 meals. I'm a beginner cook and I dislike super spicy food."
+          }
+        ]
+      }
+    },
+    {
+      "eval_case_id": "celiac_hypertension_mediterranean_ideation",
+      "prompt": {
+        "role": "user",
+        "parts": [
+          {
+            "text": "I have celiac disease and high blood pressure. I like Mediterranean food, prefer chicken to fish, and dislike eggplant. What should I make for dinner?"
+          }
+        ]
+      }
+    }
+  ]
+}
